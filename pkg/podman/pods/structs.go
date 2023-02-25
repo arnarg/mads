@@ -1,11 +1,11 @@
 package pods
 
-type PodCreateRequest struct {
-	Name     string `json:"name"`
-	Hostname string `json:"hostname"`
-}
+const (
+	PodStateCreated = "Created"
+	PodStateRunning = "Running"
+)
 
-type PodInspectResponse struct {
+type PodInfo struct {
 	Id               string
 	Name             string
 	Namespace        string
@@ -46,4 +46,19 @@ type PodContainer struct {
 	Id    string
 	Name  string
 	State string
+}
+
+type PodCreateRequest struct {
+	Name         string            `json:"name"`
+	Hostname     string            `json:"hostname"`
+	Labels       map[string]string `json:"labels"`
+	PortMappings []PodPortMapping  `json:"portmappings"`
+}
+
+type PodPortMapping struct {
+	HostIP        string `json:"host_ip"`
+	HostPort      uint16 `json:"host_port"`
+	ContainerPort uint16 `json:"container_port"`
+	Protocol      string `json:"protocol"`
+	Range         uint16 `json:"range"`
 }

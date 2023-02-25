@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/arnarg/mads/pkg/podman/containers"
 	"github.com/arnarg/mads/pkg/podman/images"
 	"github.com/arnarg/mads/pkg/podman/pods"
 	"github.com/go-resty/resty/v2"
@@ -41,4 +42,8 @@ func (c *Client) Pods() *pods.Client {
 
 func (c *Client) Images() *images.Client {
 	return images.NewClient(c.client)
+}
+
+func (c *Client) Containers() *containers.Client {
+	return containers.NewClient(c.client)
 }
