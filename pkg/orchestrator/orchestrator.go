@@ -24,8 +24,11 @@ import (
 )
 
 const (
-	lastAppliedLabel = "mads/last-applied-configuration"
-	envoyImage       = "envoyproxy/envoy:v1.22.8"
+	lastAppliedLabel   = "mads/last-applied-configuration"
+	serviceIDsLabel    = "mads/service-ids"
+	managedServiceMeta = "mads_managed"
+	servicePodNameMeta = "mads_pod_name"
+	envoyImage         = "envoyproxy/envoy:v1.22.8"
 )
 
 type consulInfo struct {
@@ -85,10 +88,50 @@ func NewOrchestrator(cfg *Config) (*Orchestrator, error) {
 	}, nil
 }
 
+func (o *Orchestrator) Delete(ctx context.Context, nameOrID string) error {
+	// Try to get pod info from podman
+	pinfo, err := o.pclient.Pods().Inspect(ctx, nameOrID)
+	if err != nil {
+		return fmt.Errorf("could not get info on pod '%s': %s", nameOrID, err)
+	}
+
+	// Check if pod is mads managed.
+	// Simply the presence of the last-applied-configuration label is enough.
+	if _, ok := pinfo.Labels[lastAppliedLabel]; !ok {
+		return fmt.Errorf("pod '%s' is not managed by mads", nameOrID)
+	}
+
+	// Get a list of services to clean up
+	svcs := []string{}
+	if svcList, ok := pinfo.Labels[serviceIDsLabel]; ok {
+		svcs = strings.Split(svcList, ",")
+	}
+
+	// Deregister services
+	for _, svc := range svcs {
+		err := o.cclient.Agent().ServiceDeregister(svc)
+		// If we get a 404 we might have already deregistered it in a previous run
+		// but it doesn't matter and we'll just continue.
+		if err != nil && !strings.Contains(err.Error(), "Unknown service ID") {
+			return fmt.Errorf("could not deregister consul service '%s': %s", svc, err)
+		}
+	}
+
+	// Delete podman pod.
+	// We have confirmed that the pod has the last-applied-configuration label so we can just force delete it.
+	err = o.pclient.Pods().Delete(ctx, nameOrID, true)
+	if err != nil {
+		return fmt.Errorf("could not delete pod '%s': %s", nameOrID, err)
+	}
+
+	return nil
+}
+
 func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 	// Create services
+	svcIDs := []string{}
 	for _, svc := range pod.Services {
-		ctr, err := o.createService(ctx, &svc)
+		id, ctr, err := o.createService(ctx, pod.Name, &svc)
 		if err != nil {
 			return err
 		}
@@ -97,6 +140,16 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 		if ctr != nil {
 			pod.Containers = append(pod.Containers, *ctr)
 		}
+
+		// Add to list of services
+		svcIDs = append(svcIDs, id)
+	}
+
+	podLabels := map[string]string{
+		serviceIDsLabel: strings.Join(svcIDs, ","),
+	}
+	for k, v := range pod.Labels {
+		podLabels[k] = v
 	}
 
 	// Compute hash for current configuration
@@ -142,10 +195,13 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 
 	// Create pod
 	if !exists {
+		// Save hash label
+		podLabels[lastAppliedLabel] = currHash
+
 		// Create pod creation request
 		req := &pods.PodCreateRequest{
 			Name:   pod.Name,
-			Labels: map[string]string{lastAppliedLabel: currHash},
+			Labels: podLabels,
 		}
 
 		// Apply port mappings from all containers
@@ -184,6 +240,7 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 		return fmt.Errorf("could not get info for pod '%s': %s", pod.Name, err)
 	}
 
+	// Start pod
 	if info.State != pods.PodStateRunning {
 		err := o.pclient.Pods().Start(ctx, pod.Name)
 		if err != nil && err != pods.ErrPodAlreadyStarted {
@@ -194,12 +251,17 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 	return nil
 }
 
-func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service) (*entities.Container, error) {
+func (o *Orchestrator) createService(ctx context.Context, podName string, svc *entities.Service) (string, *entities.Container, error) {
 	// Create a service registration
 	csvc := &api.AgentServiceRegistration{
+		ID:   fmt.Sprintf("mads-pod-%s-%s", podName, svc.Name),
 		Name: svc.Name,
 		Tags: svc.Tags,
 		Port: svc.Port,
+		Meta: map[string]string{
+			managedServiceMeta: "true",
+			servicePodNameMeta: podName,
+		},
 		Connect: &api.AgentServiceConnect{
 			Native: svc.Connect.Native,
 		},
@@ -215,14 +277,14 @@ func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service)
 	// Register service
 	err := o.cclient.Agent().ServiceRegister(csvc)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	// Get service metadata
-	sidecarName := fmt.Sprintf("%s-sidecar-proxy", svc.Name)
-	service, _, err := o.cclient.Agent().Service(sidecarName, &api.QueryOptions{})
+	sidecarID := fmt.Sprintf("%s-sidecar-proxy", csvc.ID)
+	service, _, err := o.cclient.Agent().Service(sidecarID, &api.QueryOptions{})
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	// Check if service sidecar container needs to be created
@@ -247,7 +309,7 @@ func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service)
 			&envoy.BootstrapTplArgs{
 				ProxyCluster:          svc.Name,
 				ProxySourceService:    svc.Name,
-				ProxyID:               sidecarName,
+				ProxyID:               sidecarID,
 				AdminAccessLogPath:    "/dev/null",
 				AdminBindAddress:      adminAddr,
 				AdminBindPort:         strconv.FormatInt(int64(adminPort), 10),
@@ -262,16 +324,17 @@ func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service)
 			true,
 		)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 
 		// Return a container that should be added to pod
-		return &entities.Container{
-			Name:            sidecarName,
+		return csvc.ID, &entities.Container{
+			Name:            fmt.Sprintf("%s-sidecar-proxy", svc.Name),
 			Image:           envoyImage,
 			ImagePullPolicy: images.PullPolicyMissing,
 			RestartPolicy:   containers.RestartPolicyAlways,
 			Args:            []string{"-c", "/etc/envoy/envoy.json"},
+			// Expose the actual ports envoy uses for consul connect traffic
 			Ports: []entities.ContainerPortMapping{
 				{
 					HostPort:      uint16(service.Port),
@@ -284,6 +347,7 @@ func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service)
 					Protocol:      "tcp",
 				},
 			},
+			// Write the envoy bootstrap config file in the container
 			Files: []entities.ContainerFile{
 				{
 					Destination: "/etc/envoy/envoy.json",
@@ -294,7 +358,7 @@ func (o *Orchestrator) createService(ctx context.Context, svc *entities.Service)
 		}, nil
 	}
 
-	return nil, nil
+	return csvc.ID, nil, nil
 }
 
 func (o *Orchestrator) createContainer(ctx context.Context, name, podID string, ctr *entities.Container) error {

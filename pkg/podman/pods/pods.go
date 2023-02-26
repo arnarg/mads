@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/arnarg/mads/pkg/entities"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -123,4 +125,41 @@ func (p *Client) Start(ctx context.Context, nameOrID string) error {
 	}
 
 	return nil
+}
+
+// SystemdUnit generates systemd unit files.
+func (p *Client) SystemdUnit(ctx context.Context, nameOrID string, opts *SystemdOptions) (map[string]string, error) {
+	// Make request
+	res, err := p.client.R().
+		ForceContentType("application/json").
+		SetPathParam("id", nameOrID).
+		SetQueryParams(map[string]string{
+			"useName":       strconv.FormatBool(opts.UseName),
+			"after":         strings.Join(opts.After, ","),
+			"restartPolicy": opts.RestartPolicy,
+			"restartSec":    strconv.FormatInt(opts.RestartSec, 10),
+		}).
+		Get("/v4/libpod/generate/{id}/systemd")
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle error message
+	if res.StatusCode() >= 400 {
+		e := &entities.PodmanAPIError{}
+		err := json.Unmarshal(res.Body(), e)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse error message")
+		}
+		return nil, e
+	}
+
+	// Parse json
+	services := map[string]string{}
+	err = json.Unmarshal(res.Body(), &services)
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
 }

@@ -3,6 +3,8 @@ package pods
 const (
 	PodStateCreated = "Created"
 	PodStateRunning = "Running"
+
+	SystemdRestartPolicyAlways = "always"
 )
 
 type PodInfo struct {
@@ -61,4 +63,13 @@ type PodPortMapping struct {
 	ContainerPort uint16 `json:"container_port"`
 	Protocol      string `json:"protocol"`
 	Range         uint16 `json:"range"`
+}
+
+type SystemdOptions struct {
+	After         []string `json:"after"`
+	Requires      []string `json:"requires"`
+	Wants         []string `json:"wants"`
+	RestartPolicy string   `json:"restartPolicy"`
+	RestartSec    int64    `json:"restartSec"`
+	UseName       bool     `json:"useName"`
 }
