@@ -145,6 +145,7 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 		svcIDs = append(svcIDs, id)
 	}
 
+	// Add service IDs to pod labels
 	podLabels := map[string]string{
 		serviceIDsLabel: strings.Join(svcIDs, ","),
 	}
@@ -228,7 +229,9 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 			ctrName := fmt.Sprintf("%s-%s", pod.Name, ctr.Name)
 			err := o.createContainer(ctx, ctrName, id, &ctr)
 			if err != nil {
-				// TODO: delete pod to cleanup
+				// Delete pod to cleanup (best effort)
+				o.pclient.Pods().Delete(ctx, id, true)
+
 				return fmt.Errorf("could not create container '%s' in pod '%s': %s", ctr.Name, pod.Name, err)
 			}
 		}
