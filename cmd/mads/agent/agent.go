@@ -67,9 +67,13 @@ func run(cCtx *cli.Context) error {
 	// Get watch-dir path
 	watchDir := cCtx.String("watch-dir")
 
+	// Get envoy image
+	envoyImage := cCtx.String("envoy-image")
+
 	// Create orchestrator instance
 	orch, err := orchestrator.NewOrchestrator(&orchestrator.Config{
 		PodmanSocketPath: socket,
+		EnvoyImage:       envoyImage,
 	})
 	if err != nil {
 		return err

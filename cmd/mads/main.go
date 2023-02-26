@@ -26,6 +26,12 @@ func main() {
 				EnvVars: []string{"MADS_PODMAN_SOCKET"},
 				Value:   "$XDG_RUNTIME_DIR/podman/podman.sock",
 			},
+			&cli.StringFlag{
+				Name:    "envoy-image",
+				Aliases: []string{"i"},
+				EnvVars: []string{"MADS_ENVOY_IMAGE"},
+				Value:   "docker.io/envoyproxy/envoy:v1.22.8",
+			},
 		},
 		Before: func(cCtx *cli.Context) error {
 			// Expand env variable in socket flag

@@ -28,7 +28,6 @@ const (
 	serviceIDsLabel    = "mads/service-ids"
 	managedServiceMeta = "mads_managed"
 	servicePodNameMeta = "mads_pod_name"
-	envoyImage         = "envoyproxy/envoy:v1.22.8"
 )
 
 type consulInfo struct {
@@ -40,14 +39,16 @@ type consulInfo struct {
 
 type Config struct {
 	PodmanSocketPath string
+	EnvoyImage       string
 }
 
 type Orchestrator struct {
-	pclient  *podman.Client
-	cclient  *api.Client
-	grpcAddr string
-	grpcPort string
-	grpcTLS  bool
+	pclient    *podman.Client
+	cclient    *api.Client
+	envoyImage string
+	grpcAddr   string
+	grpcPort   string
+	grpcTLS    bool
 }
 
 func NewOrchestrator(cfg *Config) (*Orchestrator, error) {
@@ -80,11 +81,12 @@ func NewOrchestrator(cfg *Config) (*Orchestrator, error) {
 	}
 
 	return &Orchestrator{
-		pclient:  pclient,
-		cclient:  cclient,
-		grpcAddr: addr,
-		grpcPort: port,
-		grpcTLS:  tls,
+		pclient:    pclient,
+		cclient:    cclient,
+		envoyImage: cfg.EnvoyImage,
+		grpcAddr:   addr,
+		grpcPort:   port,
+		grpcTLS:    tls,
 	}, nil
 }
 
@@ -333,7 +335,7 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 		// Return a container that should be added to pod
 		return csvc.ID, &entities.Container{
 			Name:            fmt.Sprintf("%s-sidecar-proxy", svc.Name),
-			Image:           envoyImage,
+			Image:           o.envoyImage,
 			ImagePullPolicy: images.PullPolicyMissing,
 			RestartPolicy:   containers.RestartPolicyAlways,
 			Args:            []string{"-c", "/etc/envoy/envoy.json"},

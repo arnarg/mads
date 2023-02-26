@@ -25,6 +25,9 @@ func run(cCtx *cli.Context) error {
 	// Get podman socket path
 	socket := cCtx.String("socket")
 
+	// Get envoy image
+	envoyImage := cCtx.String("envoy-image")
+
 	// Get list of pod definition paths
 	paths := cCtx.Args().Slice()
 
@@ -57,6 +60,7 @@ func run(cCtx *cli.Context) error {
 	// Create an orchestrator instance
 	orch, err := orchestrator.NewOrchestrator(&orchestrator.Config{
 		PodmanSocketPath: socket,
+		EnvoyImage:       envoyImage,
 	})
 	if err != nil {
 		return err
