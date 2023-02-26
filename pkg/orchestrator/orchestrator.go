@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -294,19 +293,6 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 
 	// Check if service sidecar container needs to be created
 	if service != nil {
-		// Get prometheus bind addr for envoy
-		adminAddr := "0.0.0.0"
-		adminPort := 9100
-		if promAddr, ok := service.Proxy.Config["envoy_prometheus_bind_addr"]; ok {
-			split := strings.Split(promAddr.(string), ":")
-			if len(split) > 1 {
-				p, err := strconv.Atoi(split[1])
-				if err == nil {
-					adminPort = p
-				}
-			}
-		}
-
 		// Render envoy config for sidecar proxy
 		// TODO: not depend on internal consul CLI util
 		bcfg := &envoy.BootstrapConfig{}
@@ -316,8 +302,8 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 				ProxySourceService:    svc.Name,
 				ProxyID:               sidecarID,
 				AdminAccessLogPath:    "/dev/null",
-				AdminBindAddress:      adminAddr,
-				AdminBindPort:         strconv.FormatInt(int64(adminPort), 10),
+				AdminBindAddress:      "0.0.0.0",
+				AdminBindPort:         "9100",
 				LocalAgentClusterName: "local_agent",
 				Token:                 "",
 				GRPC: envoy.GRPC{
@@ -344,11 +330,6 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 				{
 					HostPort:      uint16(service.Port),
 					ContainerPort: uint16(service.Port),
-					Protocol:      "tcp",
-				},
-				{
-					HostPort:      uint16(adminPort),
-					ContainerPort: uint16(adminPort),
 					Protocol:      "tcp",
 				},
 			},
