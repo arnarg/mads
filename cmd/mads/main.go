@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/arnarg/mads/cmd/mads/agent"
 	"github.com/arnarg/mads/cmd/mads/apply"
 	"github.com/arnarg/mads/cmd/mads/delete"
 	"github.com/urfave/cli/v2"
@@ -22,6 +23,7 @@ func main() {
 			&cli.StringFlag{
 				Name:    "socket",
 				Aliases: []string{"s"},
+				EnvVars: []string{"MADS_PODMAN_SOCKET"},
 				Value:   "$XDG_RUNTIME_DIR/podman/podman.sock",
 			},
 		},
@@ -36,6 +38,7 @@ func main() {
 		Commands: cli.Commands{
 			apply.Command,
 			delete.Command,
+			agent.Command,
 		},
 	}
 
