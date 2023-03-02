@@ -1,0 +1,25 @@
+name: nginx
+
+containers:
+  - name: nginx
+    image: docker.io/library/nginx:1.22.1
+    ports:
+      - containerPort: 80
+        hostPort: 8080
+    files:
+      - destination: /usr/share/nginx/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+          <title>Welcome to mads!</title>
+          <style>
+          html { color-scheme: light dark; }
+          body { width: 35em; margin: 0 auto;
+          font-family: Tahoma, Verdana, Arial, sans-serif; }
+          </style>
+          </head>
+          <body>
+            <h1>Welcome to mads!</h1>
+          </body>
+          </html>
