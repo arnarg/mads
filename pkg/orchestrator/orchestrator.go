@@ -283,43 +283,43 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 		csvc.Connect.SidecarService = &api.AgentServiceRegistration{}
 
 		if svc.Connect.SidecarService.Proxy != nil {
-		// Setup proxy config
-		var proxyCfg *api.AgentServiceConnectProxyConfig
+			// Setup proxy config
+			var proxyCfg *api.AgentServiceConnectProxyConfig
 
-		// Add upstreams to service registration
-		if len(svc.Connect.SidecarService.Proxy.Upstreams) > 0 {
-			proxyCfg = &api.AgentServiceConnectProxyConfig{Mode: api.ProxyModeTransparent}
-
-			for _, upstream := range svc.Connect.SidecarService.Proxy.Upstreams {
-				proxyCfg.Upstreams = append(proxyCfg.Upstreams, api.Upstream{
-					LocalBindAddress: upstream.LocalBindAddress,
-					LocalBindPort:    int(upstream.LocalBindPort),
-					DestinationName:  upstream.DestinationName,
-				})
-			}
-		}
-
-		// Add expose paths to proxy config
-		if len(svc.Connect.SidecarService.Proxy.Expose.Paths) > 0 {
-			if proxyCfg == nil {
+			// Add upstreams to service registration
+			if len(svc.Connect.SidecarService.Proxy.Upstreams) > 0 {
 				proxyCfg = &api.AgentServiceConnectProxyConfig{Mode: api.ProxyModeTransparent}
+
+				for _, upstream := range svc.Connect.SidecarService.Proxy.Upstreams {
+					proxyCfg.Upstreams = append(proxyCfg.Upstreams, api.Upstream{
+						LocalBindAddress: upstream.LocalBindAddress,
+						LocalBindPort:    int(upstream.LocalBindPort),
+						DestinationName:  upstream.DestinationName,
+					})
+				}
 			}
 
-			for _, expose := range svc.Connect.SidecarService.Proxy.Expose.Paths {
-				proxyCfg.Expose.Paths = append(proxyCfg.Expose.Paths, api.ExposePath{
-					Path:          expose.Path,
-					LocalPathPort: int(expose.LocalPathPort),
-					ListenerPort:  int(expose.ListenerPort),
-					Protocol:      expose.Protocol,
-				})
+			// Add expose paths to proxy config
+			if len(svc.Connect.SidecarService.Proxy.Expose.Paths) > 0 {
+				if proxyCfg == nil {
+					proxyCfg = &api.AgentServiceConnectProxyConfig{Mode: api.ProxyModeTransparent}
+				}
+
+				for _, expose := range svc.Connect.SidecarService.Proxy.Expose.Paths {
+					proxyCfg.Expose.Paths = append(proxyCfg.Expose.Paths, api.ExposePath{
+						Path:          expose.Path,
+						LocalPathPort: int(expose.LocalPathPort),
+						ListenerPort:  int(expose.ListenerPort),
+						Protocol:      expose.Protocol,
+					})
+				}
+			}
+
+			// Save proxy config in service registration
+			if proxyCfg != nil {
+				csvc.Connect.SidecarService.Proxy = proxyCfg
 			}
 		}
-
-		// Save proxy config in service registration
-		if proxyCfg != nil {
-			csvc.Connect.SidecarService.Proxy = proxyCfg
-		}
-	}
 	}
 
 	// Register service
@@ -407,6 +407,7 @@ func (o *Orchestrator) createContainer(ctx context.Context, name, podID string, 
 		Image:   imageID,
 		Pod:     podID,
 		Command: ctr.Args,
+		Env:     ctr.Env,
 	}
 
 	// Apply mounts

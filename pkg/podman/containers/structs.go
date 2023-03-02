@@ -12,14 +12,15 @@ const (
 )
 
 type ContainerCreateRequest struct {
-	Name          string           `json:"name"`
-	Image         string           `json:"image"`
-	Namespace     string           `json:"namespace,omitempty"`
-	Pod           string           `json:"pod,omitempty"`
-	RestartPolicy string           `json:"restart_policy,omitempty"`
-	Command       []string         `json:"command,omitempty"`
-	Mounts        []ContainerMount `json:"mounts,omitempty"`
-	HostAdd       []string         `json:"hostadd,omitempty"`
+	Name          string            `json:"name"`
+	Image         string            `json:"image"`
+	Namespace     string            `json:"namespace,omitempty"`
+	Pod           string            `json:"pod,omitempty"`
+	RestartPolicy string            `json:"restart_policy,omitempty"`
+	Command       []string          `json:"command,omitempty"`
+	Mounts        []ContainerMount  `json:"mounts,omitempty"`
+	HostAdd       []string          `json:"hostadd,omitempty"`
+	Env           map[string]string `json:"env,omitempty"`
 }
 
 type ContainerMount struct {

@@ -8,6 +8,7 @@ type Container struct {
 	ImagePullPolicy string                 `default:"always" yaml:"imagePullPolicy" json:"imagePullPolicy,omitempty"`
 	RestartPolicy   string                 `default:"always" yaml:"restartPolicy" json:"restartPolicy,omitempty"`
 	Args            []string               `yaml:"args" json:"args,omitempty"`
+	Env             map[string]string      `yaml:"env" json:"env,omitempty"`
 	Ports           []ContainerPortMapping `yaml:"ports" json:"ports,omitempty"`
 	Files           []ContainerFile        `yaml:"files" json:"files,omitempty"`
 	Mounts          []ContainerMount       `yaml:"mounts" mounts:"mounts,omitempty"`
