@@ -1,2 +1,5 @@
 # Compiled binary
 /mads
+
+# Nix build
+/result
