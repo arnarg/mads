@@ -110,9 +110,9 @@ stats_config:
   - regex: "^cluster\\.(((?:[^.]+~)?(?:[^.]+\\.)?[^.]+\\.[^.]+\\.(?:[^.]+\\.)?[^.]+\\.[^.]+\\.[^.]+)\\.consul\\.)"
     tag_name: consul.full_target
   - tag_name: local_cluster
-    fixed_value: nginx
+    fixed_value: {{.ServiceName}}
   - tag_name: consul.source.service
-    fixed_value: nginx
+    fixed_value: {{.ServiceName}}
   - tag_name: consul.source.namespace
     fixed_value: default
   - tag_name: consul.source.partition
