@@ -43,3 +43,18 @@ services:
     connect:
       sidecarService: {}
 ```
+
+**Output:**
+
+```
+>> podman ps
+CONTAINER ID  IMAGE                                   COMMAND               CREATED        STATUS            PORTS                     NAMES
+9edff0205ebc  localhost/podman-pause:4.3.1-315532800                        7 seconds ago  Up 4 seconds ago  0.0.0.0:21000->21000/tcp  1509804e0a7c-infra
+4d05d1d3648c  docker.io/library/nginx:1.22.1          nginx -g daemon o...  5 seconds ago  Up 4 seconds ago  0.0.0.0:21000->21000/tcp  nginx-nginx
+f24457b82105  docker.io/envoyproxy/envoy:v1.22.8      -c /etc/envoy/env...  4 seconds ago  Up 4 seconds ago  0.0.0.0:21000->21000/tcp  nginx-nginx-sidecar-proxy
+
+>> consul catalog services
+consul
+nginx
+nginx-sidecar-proxy
+```

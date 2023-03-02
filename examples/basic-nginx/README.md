@@ -40,3 +40,13 @@ containers:
           </body>
           </html>
 ```
+
+**Output:**
+
+```
+>> podman ps
+CONTAINER ID  IMAGE                                   COMMAND               CREATED        STATUS            PORTS                 NAMES
+d0adf09ec7c8  localhost/podman-pause:4.3.1-315532800                        7 seconds ago  Up 5 seconds ago  0.0.0.0:8080->80/tcp  3e04d72d17db-infra
+0a7110683958  docker.io/library/nginx:1.22.1          nginx -g daemon o...  5 seconds ago  Up 5 seconds ago  0.0.0.0:8080->80/tcp  nginx-nginx
+
+```
