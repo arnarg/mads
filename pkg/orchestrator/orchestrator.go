@@ -282,6 +282,7 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 	if !csvc.Connect.Native && svc.Connect.SidecarService != nil {
 		csvc.Connect.SidecarService = &api.AgentServiceRegistration{}
 
+		if svc.Connect.SidecarService.Proxy != nil {
 		// Setup proxy config
 		var proxyCfg *api.AgentServiceConnectProxyConfig
 
@@ -318,6 +319,7 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 		if proxyCfg != nil {
 			csvc.Connect.SidecarService.Proxy = proxyCfg
 		}
+	}
 	}
 
 	// Register service
