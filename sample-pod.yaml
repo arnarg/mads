@@ -25,4 +25,10 @@ services:
   - name: nginx
     port: 80
     connect:
-      sidecarService: {}
+      sidecarService:
+        proxy:
+          expose:
+            paths:
+              - path: /
+                localPathPort: 80
+                listenerPort: 8080

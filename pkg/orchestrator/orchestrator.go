@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/arnarg/mads/pkg/entities"
+	"github.com/arnarg/mads/pkg/envoy"
 	"github.com/arnarg/mads/pkg/podman"
 	"github.com/arnarg/mads/pkg/podman/containers"
 	"github.com/arnarg/mads/pkg/podman/images"
 	"github.com/arnarg/mads/pkg/podman/pods"
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/command/connect/envoy"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -336,26 +336,15 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 	// Check if service sidecar container needs to be created
 	if service != nil {
 		// Render envoy config for sidecar proxy
-		// TODO: not depend on internal consul CLI util
-		bcfg := &envoy.BootstrapConfig{}
-		ecfg, err := bcfg.GenerateJSON(
-			&envoy.BootstrapTplArgs{
-				ProxyCluster:          svc.Name,
-				ProxySourceService:    svc.Name,
-				ProxyID:               sidecarID,
-				AdminAccessLogPath:    "/dev/null",
-				AdminBindAddress:      "0.0.0.0",
-				AdminBindPort:         "9100",
-				LocalAgentClusterName: "local_agent",
-				Token:                 "",
-				GRPC: envoy.GRPC{
-					AgentAddress: o.grpcAddr,
-					AgentPort:    strconv.FormatUint(uint64(o.grpcPort), 10),
-					AgentTLS:     o.grpcTLS,
-				},
-			},
-			true,
-		)
+		ecfg, err := envoy.TemplateConfig(&envoy.TemplateParams{
+			AdminAddress: "0.0.0.0",
+			AdminPort:    9100,
+			ServiceName:  svc.Name,
+			ServiceID:    service.ID,
+			AgentAddress: o.grpcAddr,
+			AgentPort:    o.grpcPort,
+			AgentTLS:     o.grpcTLS,
+		})
 		if err != nil {
 			return "", nil, err
 		}
@@ -572,7 +561,7 @@ func findGRPCAddrPort(info *consulInfo) (string, uint16, bool, error) {
 					return "", 0, false, err
 				}
 
-				return address, uint16(port64), true, nil
+				return address, uint16(port64), false, nil
 			}
 		}
 	}
