@@ -12,6 +12,7 @@ import (
 // //////
 type Pod struct {
 	Name       string            `yaml:"name" json:"name"`
+	Hosts      map[string]string `yaml:"hosts"`
 	Containers []Container       `yaml:"containers" json:"containers"`
 	Labels     map[string]string `yaml:"labels" json:"labels,omitempty"`
 	Services   []Service         `yaml:"services" json:"services,omitempty"`

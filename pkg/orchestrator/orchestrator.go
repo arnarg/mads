@@ -207,8 +207,14 @@ func (o *Orchestrator) Apply(ctx context.Context, pod *entities.Pod) error {
 			Labels: podLabels,
 		}
 
-		// Apply port mappings from all containers
+		// Apply hosts
+		for host, ip := range pod.Hosts {
+			req.HostAdd = append(req.HostAdd, fmt.Sprintf("%s:%s", host, ip))
+		}
+
+		// Take various config from containers that needs to be set on pod level
 		for _, ctr := range pod.Containers {
+			// Apply port mappings from all containers
 			for _, mapping := range ctr.Ports {
 				req.PortMappings = append(req.PortMappings, pods.PodPortMapping{
 					HostIP:        mapping.HostIP,

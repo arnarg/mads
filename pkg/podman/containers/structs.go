@@ -19,6 +19,7 @@ type ContainerCreateRequest struct {
 	RestartPolicy string           `json:"restart_policy,omitempty"`
 	Command       []string         `json:"command,omitempty"`
 	Mounts        []ContainerMount `json:"mounts,omitempty"`
+	HostAdd       []string         `json:"hostadd,omitempty"`
 }
 
 type ContainerMount struct {

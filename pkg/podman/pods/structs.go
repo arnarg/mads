@@ -52,9 +52,10 @@ type PodContainer struct {
 
 type PodCreateRequest struct {
 	Name         string            `json:"name"`
-	Hostname     string            `json:"hostname"`
-	Labels       map[string]string `json:"labels"`
-	PortMappings []PodPortMapping  `json:"portmappings"`
+	Hostname     string            `json:"hostname,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty"`
+	PortMappings []PodPortMapping  `json:"portmappings,omitempty"`
+	HostAdd      []string          `json:"hostadd,omitempty"`
 }
 
 type PodPortMapping struct {
