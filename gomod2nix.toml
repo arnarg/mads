@@ -89,11 +89,11 @@ schema = 3
     version = "v0.0.0-20201216005158-039620a65673"
     hash = "sha256-WGHtW/OkLowkqOYIvXpDOpn9wqdH2+Dyx3+rYwpmvzI="
   [mod."golang.org/x/net"]
-    version = "v0.4.0"
-    hash = "sha256-7IwGZh/xg4mQz88cJio2Ov5d3jGRXKj1itlAja/EAbQ="
+    version = "v0.7.0"
+    hash = "sha256-LgZYZRwtMqm+soNh+esxDSeRuIDxRGb9OEfYaFJHCDI="
   [mod."golang.org/x/sys"]
-    version = "v0.3.0"
-    hash = "sha256-TIHhfYbZ99sCU1ZMikxwomXH5AEtD/lA1VMMW+UAhbU="
+    version = "v0.5.0"
+    hash = "sha256-0LTr3KeJ1OMQAwYUQo1513dXJtQAJn5Dq8sFkc8ps1U="
   [mod."gopkg.in/check.v1"]
     version = "v1.0.0-20200227125254-8fa46927fb4f"
     hash = "sha256-nGV66SlDrpDfhkzlr9h52JybsCioW3ix5bKmbkEfoDs="
