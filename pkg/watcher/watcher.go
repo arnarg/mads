@@ -8,7 +8,7 @@ import (
 
 	"github.com/arnarg/mads/pkg/entities"
 	"github.com/fsnotify/fsnotify"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (

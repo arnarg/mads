@@ -1,5 +1,7 @@
 package entities
 
+import "github.com/creasty/defaults"
+
 // This is mostly a re-creation of a subset of a consul agent service structs
 
 type Service struct {
@@ -24,7 +26,29 @@ type ServiceConnectSidecarProxy struct {
 }
 
 type ServiceConnectSidecarProxyUpstream struct {
+	LocalBindAddress string `yaml:"localBindAddress"`
+	LocalBindPort    uint16 `yaml:"localBindPort"`
+	DestinationName  string `yaml:"destinationName"`
 }
 
 type ServiceConnectSidecarProxyExpose struct {
+	Paths []ServiceConnectSidecarProxyExposePath `yaml:"paths"`
+}
+
+type ServiceConnectSidecarProxyExposePath struct {
+	Path          string `yaml:"path"`
+	LocalPathPort uint16 `yaml:"localPathPort"`
+	ListenerPort  uint16 `yaml:"listenerPort"`
+	Protocol      string `default:"http" yaml:"protocol"`
+}
+
+func (p *ServiceConnectSidecarProxyExposePath) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	defaults.Set(p)
+
+	type plain ServiceConnectSidecarProxyExposePath
+	if err := unmarshal((*plain)(p)); err != nil {
+		return err
+	}
+
+	return nil
 }

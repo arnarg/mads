@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ type Orchestrator struct {
 	cclient    *api.Client
 	envoyImage string
 	grpcAddr   string
-	grpcPort   string
+	grpcPort   uint16
 	grpcTLS    bool
 }
 
@@ -275,7 +276,42 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 	if !csvc.Connect.Native && svc.Connect.SidecarService != nil {
 		csvc.Connect.SidecarService = &api.AgentServiceRegistration{}
 
-		// TODO: setup proxy config
+		// Setup proxy config
+		var proxyCfg *api.AgentServiceConnectProxyConfig
+
+		// Add upstreams to service registration
+		if len(svc.Connect.SidecarService.Proxy.Upstreams) > 0 {
+			proxyCfg = &api.AgentServiceConnectProxyConfig{Mode: api.ProxyModeTransparent}
+
+			for _, upstream := range svc.Connect.SidecarService.Proxy.Upstreams {
+				proxyCfg.Upstreams = append(proxyCfg.Upstreams, api.Upstream{
+					LocalBindAddress: upstream.LocalBindAddress,
+					LocalBindPort:    int(upstream.LocalBindPort),
+					DestinationName:  upstream.DestinationName,
+				})
+			}
+		}
+
+		// Add expose paths to proxy config
+		if len(svc.Connect.SidecarService.Proxy.Expose.Paths) > 0 {
+			if proxyCfg == nil {
+				proxyCfg = &api.AgentServiceConnectProxyConfig{Mode: api.ProxyModeTransparent}
+			}
+
+			for _, expose := range svc.Connect.SidecarService.Proxy.Expose.Paths {
+				proxyCfg.Expose.Paths = append(proxyCfg.Expose.Paths, api.ExposePath{
+					Path:          expose.Path,
+					LocalPathPort: int(expose.LocalPathPort),
+					ListenerPort:  int(expose.ListenerPort),
+					Protocol:      expose.Protocol,
+				})
+			}
+		}
+
+		// Save proxy config in service registration
+		if proxyCfg != nil {
+			csvc.Connect.SidecarService.Proxy = proxyCfg
+		}
 	}
 
 	// Register service
@@ -308,7 +344,7 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 				Token:                 "",
 				GRPC: envoy.GRPC{
 					AgentAddress: o.grpcAddr,
-					AgentPort:    o.grpcPort,
+					AgentPort:    strconv.FormatUint(uint64(o.grpcPort), 10),
 					AgentTLS:     o.grpcTLS,
 				},
 			},
@@ -318,25 +354,39 @@ func (o *Orchestrator) createService(ctx context.Context, podName string, svc *e
 			return "", nil, err
 		}
 
+		// Create port mappings for sidecar container
+		ports := []entities.ContainerPortMapping{
+			{
+				HostPort:      uint16(service.Port),
+				ContainerPort: uint16(service.Port),
+				Protocol:      "tcp",
+			},
+		}
+
+		// Add any expose ports
+		if service.Proxy != nil && len(service.Proxy.Expose.Paths) > 0 {
+			for _, expose := range service.Proxy.Expose.Paths {
+				ports = append(ports, entities.ContainerPortMapping{
+					HostPort:      uint16(expose.ListenerPort),
+					ContainerPort: uint16(expose.ListenerPort),
+					// TODO: handle this more gracefully
+					Protocol: "tcp",
+				})
+			}
+		}
+
 		// Return a container that should be added to pod
 		return csvc.ID, &entities.Container{
 			Name:            fmt.Sprintf("%s-sidecar-proxy", svc.Name),
 			Image:           o.envoyImage,
 			ImagePullPolicy: images.PullPolicyMissing,
 			RestartPolicy:   containers.RestartPolicyAlways,
-			Args:            []string{"-c", "/etc/envoy/envoy.json"},
-			// Expose the actual ports envoy uses for consul connect traffic
-			Ports: []entities.ContainerPortMapping{
-				{
-					HostPort:      uint16(service.Port),
-					ContainerPort: uint16(service.Port),
-					Protocol:      "tcp",
-				},
-			},
+			Args:            []string{"-c", "/etc/envoy/envoy.yml"},
+			Ports:           ports,
 			// Write the envoy bootstrap config file in the container
 			Files: []entities.ContainerFile{
 				{
-					Destination: "/etc/envoy/envoy.json",
+					Destination: "/etc/envoy/envoy.yml",
 					Content:     string(ecfg),
 					Mode:        0644,
 				},
@@ -472,7 +522,7 @@ func realizeImage(ctx context.Context, client *podman.Client, rawImage, pullPoli
 	return info.Id, nil
 }
 
-func findGRPCAddrPort(info *consulInfo) (string, string, bool, error) {
+func findGRPCAddrPort(info *consulInfo) (string, uint16, bool, error) {
 	// First look in TLS addrs
 	for _, addr := range info.DebugConfig.GRPCTLSAddrs {
 		if strings.HasPrefix(addr, "tcp://") {
@@ -484,10 +534,15 @@ func findGRPCAddrPort(info *consulInfo) (string, string, bool, error) {
 			}
 
 			address := split[0]
-			port := split[1]
+			portStr := split[1]
 
 			if a := net.ParseIP(address); a != nil && !a.IsLoopback() {
-				return address, port, true, nil
+				port64, err := strconv.ParseUint(portStr, 10, 16)
+				if err != nil {
+					return "", 0, false, err
+				}
+
+				return address, uint16(port64), true, nil
 			}
 		}
 	}
@@ -503,13 +558,18 @@ func findGRPCAddrPort(info *consulInfo) (string, string, bool, error) {
 			}
 
 			address := split[0]
-			port := split[1]
+			portStr := split[1]
 
 			if a := net.ParseIP(address); a != nil && !a.IsLoopback() {
-				return address, port, false, nil
+				port64, err := strconv.ParseUint(portStr, 10, 16)
+				if err != nil {
+					return "", 0, false, err
+				}
+
+				return address, uint16(port64), true, nil
 			}
 		}
 	}
 
-	return "", "", false, fmt.Errorf("no valid grpc address found")
+	return "", 0, false, fmt.Errorf("no valid grpc address found")
 }
