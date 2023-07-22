@@ -1,14 +1,3 @@
-# Basic nginx
-
-This simple example is the equivalent of running of the following:
-
-- `podman create --name nginx -e "NGINX_HOST=example.com" -e "NGINX_PORT=80" -p 8080:80 docker.io/library/nginx:1.22.1`
-- `podman cp index.html nginx-nginx:/usr/share/nginx/html/index.html`
-- `podman start nginx`
-
-## Example
-
-```hcl
 # Container named nginx
 container "nginx" {
   # Specify image
@@ -20,13 +9,38 @@ container "nginx" {
     NGINX_PORT = 80
   }
 
+  # Sets metadata for the container
+  metadata {
+    # Adds annotation "io.mads/some-annotation" to container
+    annotation "io.mads/some-annotation" {
+      value = true
+    }
+
+    # Adds label "mads" to the container
+    label "created_by" {
+      value = "mads"
+    }
+  }
+
   # Sets network config for the container
-  network {
+  networking {
+    # Adds a host mapping to container
+    host "some.host.com" {
+      address = "127.0.0.1"
+    }
+
     # Map port 80 to 8080 on the host
     expose {
       container = 80
       host      = 8080
     }
+  }
+
+  # Bind mount into container
+  mount {
+    type        = "bind"
+    source      = "/tmp/data"
+    destination = "/var/lib/data"
   }
 
   # Write a file into the container before
@@ -51,12 +65,3 @@ container "nginx" {
     EOH
   }
 }
-```
-
-**Output:**
-
-```
->> podman ps
-CONTAINER ID  IMAGE                           COMMAND               CREATED       STATUS        PORTS                 NAMES
-ac2493a471bf  docker.io/library/nginx:1.22.1  nginx -g daemon o...  1 second ago  Up 2 seconds  0.0.0.0:8080->80/tcp  nginx
-```
